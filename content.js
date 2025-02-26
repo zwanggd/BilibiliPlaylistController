@@ -2,49 +2,25 @@ class BilibiliPlaylistManager {
   constructor() {
     this.originalOrder = [];
     this.buttonsAdded = false;
-    this.enabled = true;
     this.init();
-    
-    // Listen for enable/disable messages
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === 'toggleExtension') {
-        this.enabled = request.enabled;
-        this.toggleControls(request.enabled);
-      }
-    });
-
-    // Load initial state
-    chrome.storage.sync.get(['enabled'], result => {
-      this.enabled = result.enabled ?? true;
-      if (!this.enabled) {
-        this.toggleControls(false);
-      }
-    });
-  }
-
-  toggleControls(enabled) {
-    const controls = document.querySelector('.playlist-controls');
-    if (controls) {
-      controls.style.display = enabled ? 'inline-flex' : 'none';
-    }
   }
 
   init() {
     // Create separate observers for playlist and header
     const playlistObserver = new MutationObserver((mutations) => {
-        const playlist = document.querySelector('.video-pod__list');
-        if (playlist && !this.originalOrder.length) {
-            this.saveOriginalOrder();
-            this.setupVideoNavigation();
-        }
+      const playlist = document.querySelector('.video-pod__list');
+      if (playlist && !this.originalOrder.length) {
+        this.saveOriginalOrder();
+        this.setupVideoNavigation();
+      }
     });
 
     const headerObserver = new MutationObserver((mutations) => {
-        const header = document.querySelector('.video-pod__header .header-top .left');
-        if (header && !document.querySelector('.playlist-controls')) {
-            this.addControlButtons();
-            this.buttonsAdded = true;
-        }
+      const header = document.querySelector('.video-pod__header .header-top .left');
+      if (header && !document.querySelector('.playlist-controls')) {
+        this.addControlButtons();
+        this.buttonsAdded = true;
+      }
     });
 
     // Observe only specific parts of the DOM
