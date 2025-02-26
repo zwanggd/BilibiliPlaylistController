@@ -1,11 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Bilibili Playlist Controller / 哔哩哔哩合集播放控制",
-  "description": "Control Bilibili playlist playback order with shuffle, reverse, and reset functions. 控制哔哩哔哩合集播放顺序，支持随机播放、倒序播放和重置顺序。\n\n联系作者 Contact: wang306257598@gmail.com | https://zwanggd.github.io/personal-website/",
+  "description": "Control Bilibili playlist playback order with shuffle, reverse, and reset functions. 控制哔哩哔哩合集播放顺序，支持随机播放、倒序播放和重置顺序",
   "version": "1.0",
   "permissions": [
-    "activeTab",
-    "storage"
+    "activeTab"
   ],
   "action": {
     "default_popup": "popup.html",
