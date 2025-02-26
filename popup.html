@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 300px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      color: #333;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #00a1d6;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 16px;
+    }
+    .description {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #666;
+      margin-bottom: 20px;
+      padding: 0 12px;
+    }
+    .donate-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 16px;
+      background-color: #00a1d6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 16px;
+    }
+    .donate-btn:hover {
+      background-color: #0091c2;
+      transform: translateY(-1px);
+    }
+    .donate-btn svg {
+      margin-right: 6px;
+    }
+    .qr-container {
+      display: none;
+      margin: 16px auto;
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      max-width: 240px;
+    }
+    .qr-container.show {
+      display: block;
+    }
+    .qr-code {
+      width: 200px;
+      height: 200px;
+      object-fit: contain;
+    }
+    .qr-title {
+      color: #00a1d6;
+      margin: 0 0 12px 0;
+      font-size: 14px;
+    }
+    .footer {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #999;
+    }
+    .footer a {
+      color: #00a1d6;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+    .divider {
+      height: 1px;
+      background: #eee;
+      margin: 12px 0;
+    }
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 24px;
+      margin-left: 8px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: #00a1d6;
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(24px);
+    }
+
+    .modal {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      top: 0;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .status-text {
+      font-size: 13px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">Bilibili Playlist Controller</div>
+    <div class="subtitle">哔哩哔哩合集播放控制</div>
+    
+    <div class="description">
+      Look for the playlist controls next to the video title!<br>
+      您可以在视频标题旁边找到播放列表控制按钮！
+    </div>
+    
+    <button class="donate-btn" id="donateBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/>
+      </svg>
+      支持作者 Support Author
+    </button>
+
+    <div class="qr-container" id="qrContainer">
+      <div class="qr-title">感谢您的支持！</div>
+      <img class="qr-code" src="./images/alipay-qr.png" alt="Support via Alipay">
+    </div>
+
+    <div class="divider"></div>
+    <div class="footer">
+      <br>
+      希望这个简单的拓展可以帮到您，如果有什么问题，欢迎联系我。 作者：<a href="https://zwanggd.github.io/personal-website/" target="_blank">Zekai Wang</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html> 
