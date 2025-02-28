@@ -95,40 +95,48 @@ window.loadNewVideo = async function(videoId) {
     }
 };
 
-// Update playNextCustomVideo to use the global loadNewVideo function
+// Add event listener for next video updates
+document.addEventListener('updateNextVideo', (event) => {
+    window.nextVideoId = event.detail.nextVideoId;
+    window.nextVideoUrl = event.detail.nextVideoUrl;
+});
+
+// Update playNextCustomVideo to handle next video properly
 function playNextCustomVideo() {
-    // Use the next video ID set by our click handler
-    if (window.nextVideoId) {
-        const nextVideoId = window.nextVideoId;
-        const nextVideoUrl = window.nextVideoUrl;
-        
-        console.log("Playing next video:", nextVideoId);
-        
-        // Update URL and navigate
-        history.replaceState(null, "", nextVideoUrl);
+    let currentVideo = document.querySelector(".video-pod__item[data-scrolled='true']");
+    if (!currentVideo) return;
+
+    let playlist = Array.from(document.querySelectorAll(".video-pod__item"));
+    let currentIndex = playlist.indexOf(currentVideo);
+
+    if (currentIndex !== -1 && currentIndex + 1 < playlist.length) {
+        let nextVideo = playlist[currentIndex + 1];
+        let nextVideoId = nextVideo.getAttribute("data-key");
+
+        console.log("Switching to next video:", nextVideoId);
+
+        let newUrl = `https://www.bilibili.com/video/${nextVideoId}`;
+        history.replaceState(null, "", newUrl);
         window.loadNewVideo(nextVideoId);
-        
-        // Clear the stored next video
-        window.nextVideoId = null;
-        window.nextVideoUrl = null;
-    } else {
-        // Fallback to original logic for autoplay
-        let currentVideo = document.querySelector(".video-pod__item[data-scrolled='true']");
-        if (!currentVideo) return;
 
-        let playlist = Array.from(document.querySelectorAll(".video-pod__item"));
-        let currentIndex = playlist.indexOf(currentVideo);
+        // Update active state for all items
+        playlist.forEach(item => {
+            item.setAttribute('data-scrolled', item === nextVideo ? 'true' : 'false');
+        });
 
-        if (currentIndex !== -1 && currentIndex + 1 < playlist.length) {
-            let nextVideo = playlist[currentIndex + 1];
-            let nextVideoId = nextVideo.getAttribute("data-key");
-
-            console.log("Switching to next video:", nextVideoId);
-
-            let newUrl = `https://www.bilibili.com/video/${nextVideoId}`;
-            history.replaceState(null, "", newUrl);
-            window.loadNewVideo(nextVideoId);
+        // Update next video info for auto-play
+        if (currentIndex + 2 < playlist.length) {
+            const nextNextVideo = playlist[currentIndex + 2];
+            const event = new CustomEvent('updateNextVideo', {
+                detail: {
+                    nextVideoId: nextNextVideo.getAttribute('data-key'),
+                    nextVideoUrl: `https://www.bilibili.com/video/${nextNextVideo.getAttribute('data-key')}`
+                }
+            });
+            document.dispatchEvent(event);
         }
+
+        nextVideo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
 
@@ -141,13 +149,153 @@ function setupVideoEndHandler() {
     }
 }
 
+// Function to play previous video
+function playPreviousVideo() {
+    let currentVideo = document.querySelector(".video-pod__item[data-scrolled='true']");
+    if (!currentVideo) return;
+
+    let playlist = Array.from(document.querySelectorAll(".video-pod__item"));
+    let currentIndex = playlist.indexOf(currentVideo);
+
+    if (currentIndex > 0) {
+        let prevVideo = playlist[currentIndex - 1];
+        let prevVideoId = prevVideo.getAttribute("data-key");
+
+        console.log("Switching to previous video:", prevVideoId);
+
+        let newUrl = `https://www.bilibili.com/video/${prevVideoId}`;
+        history.replaceState(null, "", newUrl);
+        window.loadNewVideo(prevVideoId);
+
+        // Update active state for all items
+        playlist.forEach(item => {
+            item.setAttribute('data-scrolled', item === prevVideo ? 'true' : 'false');
+        });
+
+        // Update next video info
+        if (currentIndex - 1 >= 0) {
+            const event = new CustomEvent('updateNextVideo', {
+                detail: {
+                    nextVideoId: currentVideo.getAttribute('data-key'),
+                    nextVideoUrl: `https://www.bilibili.com/video/${currentVideo.getAttribute('data-key')}`
+                }
+            });
+            document.dispatchEvent(event);
+        }
+
+        prevVideo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Override Bilibili's default video navigation with retry mechanism
+function overrideVideoNavigation() {
+    // Override the video player's next/previous functions
+    if (window.player) {
+        window.player.next = function() {
+            playNextCustomVideo();
+            return false;
+        };
+
+        window.player.prev = function() {
+            playPreviousVideo();
+            return false;
+        };
+    }
+
+    // Override button click handlers with retry
+    function setupButtons() {
+        const prevButton = document.querySelector('.bpx-player-ctrl-prev');
+        const nextButton = document.querySelector('.bpx-player-ctrl-next');
+        const controlsExist = prevButton && nextButton;
+
+        if (controlsExist) {
+            // Previous button
+            prevButton.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                playPreviousVideo();
+                return false;
+            };
+
+            // Next button
+            nextButton.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                playNextCustomVideo();
+                return false;
+            };
+
+            // Make buttons visible if they're hidden
+            prevButton.style.display = 'flex';
+            nextButton.style.display = 'flex';
+            
+            return true;
+        }
+        return false;
+    }
+
+    // Try to set up buttons immediately
+    if (!setupButtons()) {
+        // If buttons aren't found, wait for them to appear
+        const observer = new MutationObserver((mutations, obs) => {
+            if (setupButtons()) {
+                obs.disconnect(); // Stop observing once buttons are set up
+            }
+        });
+
+        // Observe the player container for changes
+        const playerContainer = document.querySelector('.bpx-player-control-bottom-left');
+        if (playerContainer) {
+            observer.observe(playerContainer, {
+                childList: true,
+                subtree: true
+            });
+        }
+    }
+}
+
 // Initialize all protections and handlers
 function initialize() {
     setupHighlightProtection();
     setupPlaylistProtection();
     setupHistoryProtection();
     setupVideoEndHandler();
+    overrideVideoNavigation();
+
+    // Periodically check and reapply navigation override
+    // (in case player reloads)
+    setInterval(() => {
+        overrideVideoNavigation();
+    }, 2000); // Increased interval to reduce CPU usage
 }
 
 // Start the initialization
-initialize(); 
+initialize();
+
+// Add cleanup on page unload
+window.addEventListener('unload', () => {
+    // Remove video event listeners
+    const videoElement = document.querySelector("video");
+    if (videoElement) {
+        videoElement.removeEventListener("ended", playNextCustomVideo);
+    }
+
+    // Clean up navigation overrides
+    if (window.player) {
+        window.player.next = null;
+        window.player.prev = null;
+    }
+
+    // Remove our custom event listeners
+    document.removeEventListener('updateNextVideo', null);
+
+    // Clear our interval
+    if (window.navigationInterval) {
+        clearInterval(window.navigationInterval);
+    }
+});
+
+// Store interval reference
+window.navigationInterval = setInterval(() => {
+    overrideVideoNavigation();
+}, 2000); 

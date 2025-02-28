@@ -1,3 +1,16 @@
+// Helper function for debouncing - move to top
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 class BilibiliPlaylistManager {
   constructor() {
     this.originalOrder = [];
@@ -88,10 +101,23 @@ class BilibiliPlaylistManager {
       gap: 8px;
     `;
 
+    // Use debounced actions for buttons
     const buttons = [
-      { id: 'reverseBtn', text: '倒序', action: () => this.reversePlaylist() },
-      { id: 'shuffleBtn', text: '随机', action: () => this.shufflePlaylist() },
-      { id: 'resetBtn', text: '重置', action: () => this.resetPlaylist() }
+      { 
+        id: 'reverseBtn', 
+        text: '倒序', 
+        action: debounce(() => this.reversePlaylist(), 300).bind(this)
+      },
+      { 
+        id: 'shuffleBtn', 
+        text: '随机', 
+        action: debounce(() => this.shufflePlaylist(), 300).bind(this)
+      },
+      { 
+        id: 'resetBtn', 
+        text: '重置', 
+        action: debounce(() => this.resetPlaylist(), 300).bind(this)
+      }
     ];
 
     buttons.forEach(({ id, text, action }) => {
@@ -195,14 +221,14 @@ class BilibiliPlaylistManager {
                         const nextVideo = currentPlaylist[currentIndex + 1];
                         const nextVideoId = nextVideo.getAttribute('data-key');
                         
-                        // Update the video ended handler to play the correct next video
-                        const script = document.createElement('script');
-                        script.textContent = `
-                            window.nextVideoId = "${nextVideoId}";
-                            window.nextVideoUrl = "https://www.bilibili.com/video/${nextVideoId}";
-                        `;
-                        document.head.appendChild(script);
-                        script.remove();
+                        // Update next video info using custom events instead of inline script
+                        const event = new CustomEvent('updateNextVideo', {
+                            detail: {
+                                nextVideoId: nextVideoId,
+                                nextVideoUrl: `https://www.bilibili.com/video/${nextVideoId}`
+                            }
+                        });
+                        document.dispatchEvent(event);
                     }
                     
                     // Scroll to the clicked item
@@ -364,4 +390,58 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: false, error: error.message });
   }
   return true;
+});
+
+// Add error handling for video loading
+window.loadNewVideo = async function(videoId) {
+    try {
+        const response = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.code === 0 && data.data) {
+            const cid = data.data.cid;
+            const aid = data.data.aid;
+            
+            if (window.player) {
+                await window.player.reload({
+                    bvid: videoId,
+                    cid: cid,
+                    aid: aid
+                });
+                return true;
+            }
+        } else {
+            throw new Error(`API error! code: ${data.code}`);
+        }
+    } catch (error) {
+        console.error("Failed to load video:", error);
+        // Show user-friendly error message
+        const errorMsg = document.createElement('div');
+        errorMsg.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            z-index: 9999;
+        `;
+        errorMsg.textContent = '视频加载失败，请刷新页面重试 / Video loading failed, please refresh';
+        document.body.appendChild(errorMsg);
+        setTimeout(() => errorMsg.remove(), 3000);
+        return false;
+    }
+};
+
+// Add cleanup on page unload
+window.addEventListener('unload', () => {
+    // Clear observers
+    if (window.playlistObserver) window.playlistObserver.disconnect();
+    if (window.headerObserver) window.headerObserver.disconnect();
+    
+    // Clear intervals
+    if (window.setupInterval) clearInterval(window.setupInterval);
 }); 
