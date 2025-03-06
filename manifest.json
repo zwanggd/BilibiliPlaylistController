@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "哔哩哔哩合集视频倒序/随机播放",
   "description": "Control Bilibili playlist playback order with shuffle, reverse, and reset functions. 控制哔哩哔哩合集播放顺序，支持随机播放、倒序播放和重置顺序",
-  "version": "1.1",
+  "version": "1.2",
   "author": "zk Wang",
   "action": {
     "default_popup": "popup.html",

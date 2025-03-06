@@ -86,79 +86,76 @@ class BilibiliPlaylistManager {
     script.onload = () => script.remove();
   }
 
-  addControlButtons() {
-    const viewMode = document.querySelector('.video-pod__header .header-top .left');
-    if (!viewMode || viewMode.querySelector('.playlist-controls')) return;
+  shouldShowControls() {
+    // Check for the header-bottom element which only exists in video lists
+    const headerBottom = document.querySelector('.video-pod__header .header-bottom');
+    
+    // If header-bottom exists, it's a video list (not a video selection)
+    return !!headerBottom;
+  }
 
-    // Create buttons container
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'playlist-controls';
-    buttonContainer.setAttribute('data-v-db178646', '');
-    buttonContainer.style.cssText = `
-      display: inline-flex;
-      align-items: center;
-      margin-left: 12px;
-      gap: 8px;
+  addControlButtons() {
+    const header = document.querySelector('.video-pod__header .header-top .left');
+    if (!header || this.buttonsAdded) return;
+
+    // Check if we should show controls
+    if (!this.shouldShowControls()) {
+      console.log("Video selection detected, not showing playlist controls");
+      return;
+    }
+
+    // Create container for our buttons
+    const controlsContainer = document.createElement('div');
+    controlsContainer.className = 'playlist-controls';
+    controlsContainer.style.cssText = 'display: inline-flex; align-items: center; margin-left: 12px; gap: 8px;';
+
+    // Add reverse button
+    const reverseBtn = this.createControlButton('reverseBtn', '倒序', this.reversePlaylist.bind(this));
+    controlsContainer.appendChild(reverseBtn);
+
+    // Add shuffle button
+    const shuffleBtn = this.createControlButton('shuffleBtn', '随机', this.shufflePlaylist.bind(this));
+    controlsContainer.appendChild(shuffleBtn);
+
+    // Add reset button
+    const resetBtn = this.createControlButton('resetBtn', '重置', this.resetPlaylist.bind(this));
+    controlsContainer.appendChild(resetBtn);
+
+    // Add the controls to the header
+    header.appendChild(controlsContainer);
+    this.buttonsAdded = true;
+  }
+
+  createControlButton(id, text, action) {
+    const button = document.createElement('div');
+    button.className = 'view-mode';
+    button.setAttribute('data-v-db178646', '');
+    button.innerHTML = `
+      <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="width: 20px; height: 20px;">
+        ${this.getIconSvg(id)}
+      </svg>
+      <span style="margin-left: 3px;">${text}</span>
     `;
 
-    // Use debounced actions for buttons
-    const buttons = [
-      { 
-        id: 'reverseBtn', 
-        text: '倒序', 
-        action: debounce(() => this.reversePlaylist(), 300).bind(this)
-      },
-      { 
-        id: 'shuffleBtn', 
-        text: '随机', 
-        action: debounce(() => this.shufflePlaylist(), 300).bind(this)
-      },
-      { 
-        id: 'resetBtn', 
-        text: '重置', 
-        action: debounce(() => this.resetPlaylist(), 300).bind(this)
-      }
-    ];
+    button.style.cssText = `
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      color: #61666d;
+      font-size: 11px;
+      padding: 0 6px;
+      height: 22px;
+    `;
 
-    buttons.forEach(({ id, text, action }) => {
-      const button = document.createElement('div');
-      button.className = 'view-mode';
-      button.setAttribute('data-v-db178646', '');
-      button.innerHTML = `
-        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="width: 20px; height: 20px;">
-          ${this.getIconSvg(id)}
-        </svg>
-        <span style="margin-left: 3px;">${text}</span>
-      `;
-
-      button.style.cssText = `
-        display: inline-flex;
-        align-items: center;
-        cursor: pointer;
-        color: #61666d;
-        font-size: 11px;
-        padding: 0 6px;
-        height: 22px;
-      `;
-
-      button.addEventListener('mouseover', () => button.style.color = '#00a1d6');
-      button.addEventListener('mouseout', () => button.style.color = '#61666d');
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        action();
-      });
-
-      buttonContainer.appendChild(button);
+    button.addEventListener('mouseover', () => button.style.color = '#00a1d6');
+    button.addEventListener('mouseout', () => button.style.color = '#61666d');
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      action();
     });
 
-    // Insert after the view mode icon
-    const viewModeIcon = viewMode.querySelector('.view-mode');
-    if (viewModeIcon) {
-      viewModeIcon.parentNode.insertBefore(buttonContainer, viewModeIcon.nextSibling);
-    } else {
-      viewMode.appendChild(buttonContainer);
-    }
+    return button;
   }
 
   getIconSvg(buttonId) {
@@ -171,71 +168,170 @@ class BilibiliPlaylistManager {
   }
 
   saveOriginalOrder() {
-    const items = document.querySelectorAll('.video-pod__list .video-pod__item');
+    const items = this.getPlaylistItems();
     this.originalOrder = Array.from(items).map(item => {
-        const clone = item.cloneNode(true);
-        // Store all important attributes
+      const clone = item.cloneNode(true);
+      // Store all important attributes based on playlist type
+      const type = this.getPlaylistType();
+      
+      if (type === 'pod') {
         ['data-key', 'data-scrolled', 'class', 'style'].forEach(attr => {
-            if (item.hasAttribute(attr)) {
-                clone.setAttribute(attr, item.getAttribute(attr));
-            }
+          if (item.hasAttribute(attr)) {
+            clone.setAttribute(attr, item.getAttribute(attr));
+          }
         });
-        return clone;
+      } else if (type === 'section') {
+        ['data-key', 'class', 'style', 'data-active'].forEach(attr => {
+          if (item.hasAttribute(attr)) {
+            clone.setAttribute(attr, item.getAttribute(attr));
+          }
+        });
+      } else {
+        // For unknown types, copy all attributes
+        Array.from(item.attributes).forEach(attr => {
+          clone.setAttribute(attr.name, attr.value);
+        });
+      }
+      
+      return clone;
     });
   }
 
+  getPlaylistType() {
+    const videoPodList = document.querySelector('.video-pod__list');
+    const videoSectionList = document.querySelector('.video-section-list');
+    
+    if (videoPodList && videoPodList.children.length > 0) {
+      return 'pod';
+    } else if (videoSectionList && videoSectionList.children.length > 0) {
+      return 'section';
+    } else {
+      // Check for any other list container within video-pod
+      const anyList = document.querySelector('.video-pod [class*="list"]');
+      return anyList ? 'unknown' : null;
+    }
+  }
+
   getPlaylist() {
-    return document.querySelector('.video-pod__list');
+    const type = this.getPlaylistType();
+    if (type === 'pod') {
+      return document.querySelector('.video-pod__list');
+    } else if (type === 'section') {
+      return document.querySelector('.video-section-list');
+    } else {
+      return document.querySelector('.video-pod [class*="list"]');
+    }
   }
 
   getPlaylistItems() {
-    return document.querySelectorAll('.video-pod__list .video-pod__item');
+    const type = this.getPlaylistType();
+    if (type === 'pod') {
+      return document.querySelectorAll('.video-pod__list .video-pod__item');
+    } else if (type === 'section') {
+      return document.querySelectorAll('.video-section-list .video-section-list-item');
+    } else {
+      return document.querySelectorAll('.video-pod [class*="item"]');
+    }
+  }
+
+  getActiveItem() {
+    const type = this.getPlaylistType();
+    if (type === 'pod') {
+      return document.querySelector('.video-pod__item[data-scrolled="true"]');
+    } else if (type === 'section') {
+      return document.querySelector('.video-section-list-item.active') || 
+             document.querySelector('.video-section-list-item[data-active="true"]');
+    } else {
+      // Try all possible active indicators
+      return document.querySelector('.video-pod [class*="item"][data-scrolled="true"]') ||
+             document.querySelector('.video-pod [class*="item"].active') ||
+             document.querySelector('.video-pod [class*="item"][data-active="true"]') ||
+             document.querySelector('.video-pod [class*="item"][aria-selected="true"]');
+    }
+  }
+
+  setActiveItem(item) {
+    const type = this.getPlaylistType();
+    const items = Array.from(this.getPlaylistItems());
+    
+    if (type === 'pod') {
+      items.forEach(i => i.setAttribute('data-scrolled', i === item ? 'true' : 'false'));
+    } else if (type === 'section') {
+      items.forEach(i => {
+        i.classList.toggle('active', i === item);
+        if (i.hasAttribute('data-active')) {
+          i.setAttribute('data-active', i === item ? 'true' : 'false');
+        }
+      });
+    } else {
+      // Try all possible active indicators
+      items.forEach(i => {
+        if (i.hasAttribute('data-scrolled')) {
+          i.setAttribute('data-scrolled', i === item ? 'true' : 'false');
+        }
+        i.classList.toggle('active', i === item);
+        if (i.hasAttribute('data-active')) {
+          i.setAttribute('data-active', i === item ? 'true' : 'false');
+        }
+        if (i.hasAttribute('aria-selected')) {
+          i.setAttribute('aria-selected', i === item ? 'true' : 'false');
+        }
+      });
+    }
   }
 
   setupClickHandlers(items) {
+    const playlistType = this.getPlaylistType();
+    
     items.forEach(item => {
-        item.style.cursor = 'pointer';
-        item.onclick = async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const videoId = item.getAttribute('data-key');
-            if (videoId) {
-                // Update URL without page reload
-                const newUrl = `https://www.bilibili.com/video/${videoId}`;
-                history.replaceState(null, "", newUrl);
-                
-                if (window.loadNewVideo) {
-                    await window.loadNewVideo(videoId);
-                    
-                    // Update active state
-                    document.querySelectorAll('.video-pod__item').forEach(i => 
-                        i.setAttribute('data-scrolled', i === item ? 'true' : 'false')
-                    );
+      item.style.cursor = 'pointer';
+      item.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const videoId = item.getAttribute('data-key');
+        if (videoId) {
+          // Only update URL for regular playlists, not for video selections
+          if (playlistType === 'pod') {
+            const newUrl = `https://www.bilibili.com/video/${videoId}`;
+            history.replaceState(null, "", newUrl);
+          }
+          
+          if (window.loadNewVideo) {
+            await window.loadNewVideo(videoId);
+            
+            // Update active state
+            this.setActiveItem(item);
 
-                    // Get the current playlist order
-                    const currentPlaylist = Array.from(this.getPlaylistItems());
-                    const currentIndex = currentPlaylist.indexOf(item);
-                    
-                    // Set up the next video based on current playlist order
-                    if (currentIndex !== -1 && currentIndex + 1 < currentPlaylist.length) {
-                        const nextVideo = currentPlaylist[currentIndex + 1];
-                        const nextVideoId = nextVideo.getAttribute('data-key');
-                        
-                        // Update next video info using custom events instead of inline script
-                        const event = new CustomEvent('updateNextVideo', {
-                            detail: {
-                                nextVideoId: nextVideoId,
-                                nextVideoUrl: `https://www.bilibili.com/video/${nextVideoId}`
-                            }
-                        });
-                        document.dispatchEvent(event);
-                    }
-                    
-                    // Scroll to the clicked item
-                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
+            // Get the current playlist order
+            const currentPlaylist = Array.from(this.getPlaylistItems());
+            const currentIndex = currentPlaylist.indexOf(item);
+            
+            // Set up the next video based on current playlist order
+            if (currentIndex !== -1 && currentIndex + 1 < currentPlaylist.length) {
+              const nextVideo = currentPlaylist[currentIndex + 1];
+              const nextVideoId = nextVideo.getAttribute('data-key');
+              
+              // Create event with or without URL based on playlist type
+              const eventDetail = playlistType === 'pod' 
+                ? {
+                    nextVideoId: nextVideoId,
+                    nextVideoUrl: `https://www.bilibili.com/video/${nextVideoId}`
+                  }
+                : {
+                    nextVideoId: nextVideoId,
+                    // Don't include nextVideoUrl for video selections
+                  };
+              
+              document.dispatchEvent(new CustomEvent('updateNextVideo', {
+                detail: eventDetail
+              }));
             }
-        };
+            
+            // Scroll to the clicked item
+            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      };
     });
   }
 
@@ -319,7 +415,7 @@ class BilibiliPlaylistManager {
     }
 
     // Store current active video ID
-    const currentVideoId = document.querySelector('.video-pod__item[data-scrolled="true"]')?.getAttribute('data-key');
+    const currentVideoId = this.getActiveItem()?.getAttribute('data-key');
 
     // Get current items and remove them
     const currentItems = Array.from(this.getPlaylistItems());
@@ -338,9 +434,9 @@ class BilibiliPlaylistManager {
             
             // Set active state if this is the current video
             if (currentItem.getAttribute('data-key') === currentVideoId) {
-                currentItem.setAttribute('data-scrolled', 'true');
+                this.setActiveItem(currentItem);
             } else {
-                currentItem.setAttribute('data-scrolled', 'false');
+                this.setActiveItem(currentItem);
             }
 
             return currentItem;
@@ -360,7 +456,7 @@ class BilibiliPlaylistManager {
         window.setPlaylistCustomizing(false);
     }
 
-    const activeItem = playlist.querySelector('.video-pod__item[data-scrolled="true"]');
+    const activeItem = this.getActiveItem();
     if (activeItem) {
         activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
